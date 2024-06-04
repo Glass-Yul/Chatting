@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <title>Chat</title>
+    <style>
+        *{
+            margin:0;
+            padding:0;
+        }
+        .container{
+            width: 500px;
+            margin: 0 auto;
+            padding: 25px
+        }
+        .container h1{
+            text-align: left;
+            padding: 5px 5px 5px 15px;
+            color: #FFBB00;
+            border-left: 3px solid #FFBB00;
+            margin-bottom: 20px;
+        }
+        .chating{
+            background-color: #000;
+            width: 500px;
+            height: 500px;
+            overflow: auto;
+        }
+        .chating p{
+            color: #fff;
+            text-align: left;
+        }
+        input{
+            width: 330px;
+            height: 25px;
+        }
+        #yourMsg{
+            display: none;
+        }
+    </style>
+</head>
+<script>
+    var ws;
+
+    function wsOpen() {
+        ws = new WebSocket("ws://"+location.host+"/chating");
+        wsEvt();
+    }
+    //== 웹소켓 이벤트 리스너를 설정 ==//
+    function wsEvt() {
+        //== WebSocket 연결이 열렸을 때 발생 ==//
+        ws.onopen = function (data) { // 소켓 열리면 동작
+            // 연결이 성공적으로 열린 것을 확인하는 용도
+        };
+        //== 데이터를 수신했을 때 발생 ==//
+        ws.onmessage = function (data) {
+            // 메시지를 받으면 동작
+            var msg = data.data; // 서버로부터 받은 원시 메시지 데이터
+
+            // 메시지가 null이거나 공백이 아니면
+            if(msg != null && msg.trim() !== ''){
+                var js = JSON.parse(msg); // json 객체로 파싱
+
+                // 서버로부터 사용자 고유 세션id를 받았을 경우 (초기값임)
+                if (js.type == "getId") {
+                    // type이 getId이면 초기 설정된 값이므로
+                    // 채팅창에 값을 입력하는게 아니라 추가한 태그 sessionId에 값을 세팅해줌
+                    // 소켓이 종료되기 전까지 자기자신을 구분할 수 있는 session값
+                    var ss = js.sessionId != null ? js.sessionId : ""; // null 아니면 sessionId 아니면 빈문자열
+
+                    if (ss != "") { // sessionId에 값이 있으면
+                        $("#sessionId").val(ss); // 넣음
+                    }
+                // 일반 채팅 메시지를 받았을 경우
+                }else if (js.type == "message") {
+                    // 최초 이름을 입력하고 연결되었을때, 발급받은 sessionId값을 비교하여
+                    // 같다면 자기 자신이 발신한 메시지이므로 오른쪽으로 정렬하는 클래스를 처리하고 메시지를 출력
+                    if(js.sessionId == $("#sessionId").val()){
+                        $("#chating").append("<p class='me' style='float: right'>나 :" + js.msg + "</p><br>");
+                    }else{
+                        $("#chating").append("<p class='others'>" + js.userName + " :" + js.msg + "</p><br>");
+                    }
+                }else{
+                    console.warn("unknown type!")
+                }
+
+            }
+        };
+
+        document.addEventListener("keypress", function (e) {
+            if (e.keyCode == 13) { // 엔터키 눌렀을 때
+                send(); // 전송
+            }
+        });
+    }
+
+    function chatName() { // 이름 작성 여부
+        var userName = $("#userName").val();
+        if (userName == null || userName.trim() == "") {
+            alert("사용자 이름을 입력해주세요.");
+            $("userName").focus();
+        } else {
+            wsOpen();
+            $("#yourName").hide();
+            $("#yourMsg").show();
+        }
+    }
+    // send() 메소드를 통해 type을 message로 변경하여 초기값이 아님을 말함
+    function send() {
+        var option = {
+            type:"message", // 메시지 유형
+            sessionId:$("#sessionId").val(), // 세션id
+            userName:$("#userName").val(), // 사용자 이름
+            msg:$("#chatting").val() // 메시지 내용
+        }
+        // 웹소켓을 통해 데이터를 서버로 전송
+        ws.send(JSON.stringify(option)); // JSON 형식의 문자열로 변환
+        $('#chatting').val("");
+    }
+
+</script>
+<body>
+    <div id="container" class="container">
+        <h1>채팅</h1>
+        <!-- 구분을 위한 세션id 히튼으로 전송 -->
+        <input type="hidden" id="sessionId" value="">
+
+        <!-- 채팅들이 append 될 곳 -->
+        <div id="chating" class="chating">
+        </div>
+
+        <div id="yourName">
+            <table class="inputTable">
+                <tr>
+                    <th>사용자명</th>
+                    <th><input type="text" name="userName" id="userName"></th>
+                    <th><button onclick="chatName()" id="startBtn">이름 등록</button></th>
+                </tr>
+            </table>
+        </div>
+        <div id="yourMsg">
+            <table class="inputTable">
+                <tr>
+                    <th>메시지</th>
+                    <th><input id="chatting" placeholder="보내실 메시지를 입력하세요."></th>
+                    <th><button onclick="send()" id="sendBtn">보내기</button></th>
+                </tr>
+            </table>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <title>Room</title>
+    <style>
+        *{
+            margin:0;
+            padding:0;
+        }
+        .container{
+            width: 500px;
+            margin: 0 auto;
+            padding: 25px
+        }
+        .container h1{
+            text-align: left;
+            padding: 5px 5px 5px 15px;
+            color: #FFBB00;
+            border-left: 3px solid #FFBB00;
+            margin-bottom: 20px;
+        }
+        .roomContainer{
+            background-color: #F6F6F6;
+            width: 500px;
+            height: 500px;
+            overflow: auto;
+        }
+        .roomList{
+            border: none;
+        }
+        .roomList th{
+            border: 1px solid #FFBB00;
+            background-color: #fff;
+            color: #FFBB00;
+        }
+        .roomList td{
+            border: 1px solid #FFBB00;
+            background-color: #fff;
+            text-align: left;
+            color: #FFBB00;
+        }
+        .roomList .num{
+            width: 75px;
+            text-align: center;
+        }
+        .roomList .room{
+            width: 350px;
+        }
+        .roomList .go{
+            width: 71px;
+            text-align: center;
+        }
+        button{
+            background-color: #FFBB00;
+            font-size: 14px;
+            color: #000;
+            border: 1px solid #000;
+            border-radius: 5px;
+            padding: 3px;
+            margin: 3px;
+        }
+        .inputTable th{
+            padding: 5px;
+        }
+        .inputTable input{
+            width: 330px;
+            height: 25px;
+        }
+    </style>
+    <script type="text/javascript">
+        // var ws;
+
+        //== 웹 페이지 로드 시 두 메소드 호출 ==//
+        window.onload = function(){
+            getRoom();
+            createRoom();
+        }
+
+        //== 서버로부터 채팅방 목록을 가져오는 AJAX 요청을 수행 ==//
+        function getRoom(){
+            // url, parameter, type, callback, contentType
+            commonAjax('/getRoom', "", 'post', function(result){
+                createChatingRoom(result);
+            });
+        }
+
+        function createRoom(){
+            // 버튼을 클릭하면 입력된 채팅방 이름을 가져와서 서버에 채팅방 생성 요청
+            $("#createRoom").click(function(){
+                var msg = {	roomName : $('#roomName').val()	};
+                // url, parameter, type, callback, contentType
+                commonAjax('/createRoom', msg, 'post', function(result){
+                    createChatingRoom(result);
+                });
+
+                $("#roomName").val("");
+            });
+        }
+
+        // 특정 채팅방 참여 버튼을 클릭하면 호출
+        function goRoom(number, name){
+            location.href="/moveChating?roomName="+name+"&"+"roomNumber="+number;
+        }
+
+        //== 서버로부터 받은 채팅방 목록을 테이블 형태로 페이지에 추가함 ==//
+        function createChatingRoom(res){
+            if(res != null){
+                var tag = "<tr><th class='num'>순서</th><th class='room'>방 이름</th><th class='go'></th></tr>";
+                res.forEach(function(d, idx){
+                    var rn = d.roomName.trim();
+                    var roomNumber = d.roomNumber;
+                    // 각 채팅방에는 참여 버튼이 있으며,
+                    // 해당 버튼을 클릭하면 goRoom 함수가 호출되어 채팅방 페이지로 이동
+                    tag += "<tr>"+
+                        "<td class='num'>"+(idx+1)+"</td>"+
+                        "<td class='room'>&nbsp;"+ rn +"</td>"+
+                        "<td class='go'><button type='button' onclick='goRoom(\""+roomNumber+"\", \""+rn+"\")'>참여</button></td>" +
+                        "</tr>";
+                });
+                $("#roomList").empty().append(tag);
+            }
+        }
+
+        //== AJAX 요청을 수행하는 범용 함수 ==//
+        function commonAjax(url, parameter, type, callbak, contentType){
+            $.ajax({
+                url: url,
+                data: parameter,
+                type: type,
+                contentType : contentType!=null?contentType:'application/x-www-form-urlencoded; charset=UTF-8',
+                success: function (res) {
+                    callbak(res);
+                },
+                error : function(err){
+                    console.log('error');
+                    callbak(err);
+                }
+            });
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1>채팅방</h1>
+        <div id="roomContainer" class="roomContainer">
+            <table id="roomList" class="roomList"></table>
+        </div>
+        <div>
+            <table class="inputTable">
+                <tr>
+                    <th>방 제목</th>
+                    <th><input type="text" name="roomName" id="roomName"></th>
+                    <th><button id="createRoom">방 만들기</button></th>
+                </tr>
+            </table>
+        </div>
+    </div>
+</body>
+</html>
